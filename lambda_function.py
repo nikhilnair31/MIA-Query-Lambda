@@ -63,15 +63,23 @@ def gpt(query_text, query_result, modelName = "gpt-4-1106-preview", seed = 48, l
     print(f"Response\n{res}")
     print(f"{'*'*50}\n")
 
+    return res
+
 def handler(event, context):
     try:
         logger.info(f'Started lambda_handler\n')
 
-        input_text = event.get('input_text', 'Default input text if not provided')
-
+        logger.info(f'Event: {event}\n')
+        if 'body' in event:
+            body = json.loads(event['body'])
+            input_text = body.get('input_text', 'Default input text if not provided')
+            show_log = str(body.get('show_log', False)).lower() == 'true'
+        else:
+            input_text = 'Default input text if not provided'
+            show_log = False
         logger.info(f"Input Text: {input_text}\n")
 
-        query_result = query(text=input_text)
+        query_result = query(text=input_text, showLog = show_log)
         gpt_output = gpt(
             query_text=input_text, 
             query_result=query_result, 
@@ -100,6 +108,7 @@ if __name__ == '__main__':
     test_context = None
     # Dummy event with input text
     test_event = {
+        'show_log': "True",
         'input_text': "I remember hearing something about a forklift."
     }
 
