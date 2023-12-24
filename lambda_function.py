@@ -3,7 +3,6 @@ import os
 import json
 import logging
 import pinecone
-# from openai import OpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from dotenv import load_dotenv
 # endregion
@@ -15,7 +14,6 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 openai_api_key = os.environ.get('OPENAI_API_KEY')
-# openai_client = OpenAI(api_key=openai_api_key)
 embeddings_model = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
 pinecone_api_key = os.environ.get('PINECONE_API_KEY')
@@ -40,30 +38,6 @@ def query(text, top_k = 3, showLog = False):
     
     return query_result
 
-# def gpt(query_text, query_result, modelName = "gpt-4-1106-preview", seed = 48, length = 1024, temp = 0.0):
-#     system_prompt = f"""
-#         You are the user's companion. Help them using the context provided from metadata text. 
-#         Do not make up any information, admit if you don't know something. 
-#         Context:
-#     """
-#     response = openai_client.chat.completions.create(
-#         model=modelName,
-#         seed=seed,
-#         max_tokens=length,
-#         temperature=temp,
-#         messages=[
-#             {"role": "system", "content": f'{system_prompt} {query_result}'},
-#             {"role": "user", "content": query_text},
-#         ],
-#     )
-#     res = response.choices[0].message.content
-    
-#     print(f"\n{'*'*50}")
-#     print(f"Response\n{res}")
-#     print(f"{'*'*50}\n")
-
-#     return res
-
 def handler(event, context):
     try:
         logger.info(f'Started lambda_handler\n')
@@ -84,14 +58,6 @@ def handler(event, context):
             top_k = query_top_k,
             showLog = show_log
         )
-        # gpt_output = gpt(
-        #     query_text=query_text, 
-        #     query_result=query_result, 
-        #     modelName="gpt-4-1106-preview", 
-        #     seed=48, 
-        #     length=1024, 
-        #     temp=0.0
-        # )
 
         return {
             'statusCode': 200,
