@@ -27,16 +27,18 @@ def query(text, top_k = 3, showLog = False):
     query_embedding = embeddings_model.embed_documents([text])[0]
     query_result = index.query(vector=query_embedding, top_k=top_k, include_metadata=True)
 
+    # Transform query_result to a serializable format
+    serializable_result = [{
+        'id': match['id'],
+        'score': match['score'],
+        'metadata': match.get('metadata', {})
+    } for match in query_result['matches']]
+
     if showLog:
         print(f"Query Results: {query_result}\n")
         print(f"{'*'*50}\n")
-
-        print(f"Query Results\n")
-        for match in query_result['matches']:
-            print(f"ID: {match['id']}\nScore: {match['score']}\nMetadata: {match.get('metadata', {})}\n")
-        print(f"{'*'*50}\n")
     
-    return query_result
+    return serializable_result
 
 def handler(event, context):
     try:
