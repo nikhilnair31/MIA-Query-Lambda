@@ -23,15 +23,21 @@ pinecone.init(api_key=pinecone_api_key, environment=pinecone_env_key)
 index = pinecone.Index(pinecone_index_name)
 # endregion
 
+def datetime_converter(o):
+    if isinstance(o, datetime):
+        return o.__str__()
+
 def query(text, top_k = 3, showLog = False):
     query_embedding = embeddings_model.embed_documents([text])[0]
     query_result = index.query(vector=query_embedding, top_k=top_k, include_metadata=True)
 
-    # Transform query_result to a serializable format
     serializable_result = [{
         'id': match['id'],
         'score': match['score'],
-        'metadata': match.get('metadata', {})
+        'metadata': {
+            key: (value.isoformat() if isinstance(value, datetime) else value)
+            for key, value in match.get('metadata', {}).items()
+        }
     } for match in query_result['matches']]
 
     if showLog:
@@ -63,7 +69,13 @@ def handler(event, context):
 
         return {
             'statusCode': 200,
-            'body': json.dumps({'message': 'Processing complete', 'output': query_result})
+            'body': json.dumps(
+                {
+                    'message': 'Processing complete', 
+                    'output': query_result
+                }, 
+                default=datetime_converter
+            )
         }
 
     except Exception as e:
