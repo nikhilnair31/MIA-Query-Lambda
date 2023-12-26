@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import pinecone
+from datetime import datetime
 from langchain.embeddings import OpenAIEmbeddings
 from dotenv import load_dotenv
 # endregion
