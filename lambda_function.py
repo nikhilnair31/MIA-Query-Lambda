@@ -28,9 +28,14 @@ def datetime_converter(o):
     if isinstance(o, datetime):
         return o.__str__()
 
-def query(text, top_k = 3, showLog = False):
+def query(text, filter_dict, top_k = 3, showLog = False):
     query_embedding = embeddings_model.embed_documents([text])[0]
-    query_result = index.query(vector=query_embedding, top_k=top_k, include_metadata=True)
+    query_result = index.query(
+        vector = query_embedding, 
+        top_k = top_k, 
+        include_metadata = True,
+        filter = filter_dict
+    )
 
     serializable_result = [{
         'id': match['id'],
@@ -53,17 +58,25 @@ def handler(event, context):
 
         logger.info(f'Event: {event}\n')
         
-        body = json.loads(event['body'])
+        # Check if the event body is a string and parse it if so, otherwise use it directly
+        if isinstance(event['body'], str):
+            body = json.loads(event['body'])
+        else:
+            body = event['body']
+
         query_text = body.get('query_text', 'Default input text if not provided')
+        query_filter = body.get('query_filter', {})
         query_top_k = int(body.get('query_top_k', 3))
         show_log = str(body.get('show_log', False)).lower() == 'true'
 
         logger.info(f"Query Text: {query_text}\n")
+        logger.info(f"Query Filter: {query_filter}\n")
         logger.info(f"Query Top K: {query_top_k}\n")
         logger.info(f"Show Log: {show_log}\n")
 
         query_result = query(
             text = query_text,
+            filter_dict=query_filter,
             top_k = query_top_k,
             showLog = show_log
         )
@@ -94,7 +107,10 @@ if __name__ == '__main__':
     # Dummy event with input text
     test_event = {
         'body': {
-            'query_text': "I remember hearing something about a forklift.",
+            'query_text': "ice cream",
+            'query_filter': {
+                "source": "recording"
+            },
             'query_top_k': "3",
             'show_log': "True",
         }

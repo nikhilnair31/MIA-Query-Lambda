@@ -6,7 +6,9 @@ api_gateway_url = 'https://ufq4o43b7i.execute-api.ap-south-1.amazonaws.com/defau
 
 # Data to send with POST request, as a dictionary
 data_to_send = {
-  "input_text": "I remember hearing something about a forklift."
+    "query_text": "socks",
+    "query_top_k": 3,
+    "show_log": True
 }
 
 # Make the POST request with JSON data
