@@ -24,10 +24,6 @@ pinecone.init(api_key=pinecone_api_key, environment=pinecone_env_key)
 index = pinecone.Index(pinecone_index_name)
 # endregion
 
-def datetime_converter(o):
-    if isinstance(o, datetime):
-        return o.__str__()
-
 def query(text, filter_dict, top_k = 3, showLog = False):
     query_embedding = embeddings_model.embed_documents([text])[0]
     query_result = index.query(
@@ -45,10 +41,6 @@ def query(text, filter_dict, top_k = 3, showLog = False):
             for key, value in match.get('metadata', {}).items()
         }
     } for match in query_result['matches']]
-
-    if showLog:
-        print(f"Query Results: {query_result}\n")
-        print(f"{'*'*50}\n")
     
     return serializable_result
 
@@ -80,16 +72,12 @@ def handler(event, context):
             top_k = query_top_k,
             showLog = show_log
         )
+        query_result_str = str(query_result).replace('\n', '')
+        print(f"Query Results: {query_result_str}")
 
         return {
             'statusCode': 200,
-            'body': json.dumps(
-                {
-                    'message': 'Processing complete', 
-                    'output': query_result
-                }, 
-                default=datetime_converter
-            )
+            'body': json.dumps(query_result)
         }
 
     except Exception as e:

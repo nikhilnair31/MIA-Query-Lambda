@@ -1,13 +1,3 @@
-# Function to check if Docker is logged in to AWS ECR
-function Check-DockerLogin {
-    try {
-        docker info | Out-String -Stream | Select-String -Pattern "ECRLogin"
-        return $true
-    } catch {
-        return $false
-    }
-}
-
 # Function to check if AWS ECR repository exists
 function Check-ECRRepositoryExists {
     param ($repositoryName)
@@ -23,10 +13,8 @@ function Check-ECRRepositoryExists {
     }
 }
 
-# Login to AWS ECR if not logged in
-if (-not (Check-DockerLogin)) {
-    aws ecr get-login-password | docker login --username AWS --password-stdin 832214191436.dkr.ecr.ap-south-1.amazonaws.com
-}
+# AWS Login
+aws ecr get-login-password | docker login --username AWS --password-stdin 832214191436.dkr.ecr.ap-south-1.amazonaws.com
 
 # Create repository if it does not exist
 $repositoryName = "mia-query-lambda"
@@ -34,8 +22,43 @@ if (-not (Check-ECRRepositoryExists $repositoryName)) {
     aws ecr create-repository --repository-name $repositoryName
 }
 
-# Build and push Docker image
+# Delete all images in the repository
+$images = aws ecr describe-images --repository-name $repositoryName --output json | ConvertFrom-Json
+if ($images.imageDetails) {
+    $images.imageDetails | ForEach-Object {
+        aws ecr batch-delete-image --repository-name $repositoryName --image-ids "imageDigest=$($_.imageDigest)"
+    }
+}
+
+# Build Docker image
 docker build -t mia-query-lambda .
+# Tag the image with 'latest'. This tag will overwrite any existing 'latest' image in the repository.
 docker tag mia-query-lambda:latest 832214191436.dkr.ecr.ap-south-1.amazonaws.com/mia-query-lambda:latest
+# Push the image. This will overwrite the existing 'latest' image in the ECR repository.
 docker push 832214191436.dkr.ecr.ap-south-1.amazonaws.com/mia-query-lambda:latest
+# List images in the repository to confirm the push
 aws ecr list-images --repository-name mia-query-lambda --region ap-south-1
+
+# Deploy the latest image to Lambda
+$lambdaName = "mia-query"
+# Make sure $latestImageDigest is populated
+$images = aws ecr describe-images --repository-name $repositoryName --output json | ConvertFrom-Json
+if ($images.imageDetails) {
+    $images.imageDetails | ForEach-Object {
+        if ($_.imageTags -contains "latest") {
+            $latestImageDigest = $_.imageDigest
+        }
+    }
+}
+if (-not $latestImageDigest) {
+    $latestImageDigest = (aws ecr describe-images --repository-name $repositoryName --query 'imageDetails[?imageTags[?contains(@, `latest`)]].imageDigest' --output text)
+}
+# Construct the image URI using the image digest
+$imageUri = "832214191436.dkr.ecr.ap-south-1.amazonaws.com/mia-query-lambda@${latestImageDigest}"    
+# Update the Lambda function to use the new image URI
+$lambdaUpdate = aws lambda update-function-code --function-name $lambdaName --image-uri $imageUri
+if ($lambdaUpdate) {
+    "Lambda function updated successfully"
+} else {
+    "Failed to update Lambda function"
+}   
